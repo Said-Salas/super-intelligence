@@ -23,13 +23,24 @@ class SuperIntelligence:
             self.memory.pop(0)
 
     def think(self, internal_state):
-        current_files = internal_state["files"]
+        current_files = set(internal_state["files"])
 
         if len(self.memory) > 1:
-            previous_files = self.memory[-2]["files"]
+            previous_files = set(self.memory[-2]["files"])
 
-            if len(current_files) > len(previous_files):
-                return {"action": "log_status", "data": "New file detected"}
+            new_files = current_files - previous_files
+
+            if new_files:
+                filename = list(new_files)[0]
+
+                try:
+                    with open(filename, 'r') as f: 
+                        content = f.read()
+
+                    return {"action": "log_status", "data": f"Read {filename}: {content}"}   
+
+                except Exception as e:
+                    return {"action": "log_status", "data": f"Failed to read {filename}: {e}"}    
             
             elif len(current_files) < len(previous_files):
                 return {"action": "log_status", "data": "File deleted!"}
@@ -50,7 +61,7 @@ class SuperIntelligence:
             self.act(plan)
 
             self.cycle_count += 1
-            time.sleep(4)
+            time.sleep(8)
 
 if __name__ == "__main__":
     ai = SuperIntelligence()
