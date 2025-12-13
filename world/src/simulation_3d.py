@@ -1,104 +1,121 @@
 from ursina import *
-import threading
+import random
 import time
-import base64
+import json
 import os
-from dotenv import load_dotenv
-from openai import OpenAI
+import math
 
-load_dotenv()
-
-# --- CLOUD VISION LAYER ---
-class CloudEye:
-    def __init__(self):
-        self.is_processing = False
-        self.last_thought = "Waiting for visual input..."
-        self.last_seen_time = 0
-        self.client = None
+# --- THE ASSOCIATIVE MEMORY (The Real Brain) ---
+class AssociativeBrain:
+    def __init__(self, memory_file="cortex_memory.json"):
+        self.memory_file = memory_file
+        self.short_term_memory = [] # Buffer for (State, Action) trace
+        self.long_term_memory = {}  # The "Knowledge" {State_Hash: [Q_Forward, Q_Turn]}
+        self.epsilon = 0.2 # Curiosity (20% chance to try random stuff)
+        self.last_action = 0 # 0=Forward, 1=Turn
+        self.last_state = None
         
-        # Initialize Client
-        api_key = os.getenv("OPENAI_API_KEY")
-        if api_key:
-            self.client = OpenAI(api_key=api_key)
-            print("--- CORTEX ONLINE: Connected to OpenAI ---")
+        # Load Memory if exists (Persistence)
+        if os.path.exists(self.memory_file):
+            with open(self.memory_file, 'r') as f:
+                self.long_term_memory = json.load(f)
+            print(f"--- BRAIN LOADED: {len(self.long_term_memory)} Memories ---")
+
+    def get_state_signature(self, input_vector):
+        """
+        Compresses reality into a 'Simplicity Hash'.
+        Input: [R_signal, G_signal, Obstacle_Dist]
+        Output: A string key like "R1_G0_D5"
+        """
+        # Discretize values to group similar situations
+        r = int(input_vector['red_signal'] > 0)  # 0 or 1
+        g = int(input_vector['green_signal'] > 0) # 0 or 1
+        d = int(input_vector['center_dist'] / 5) # 0, 1, 2, 3 (Distance buckets)
+        
+        return f"R{r}_G{g}_D{d}"
+
+    def think(self, input_vector):
+        state = self.get_state_signature(input_vector)
+        self.last_state = state
+        
+        # Initialize state if new
+        if state not in self.long_term_memory:
+            self.long_term_memory[state] = [0.0, 0.0] # [Value_Forward, Value_Turn]
+        
+        # Decide: Explore or Exploit?
+        if random.random() < self.epsilon:
+            action = random.choice([0, 1])
+            thought = "Exploring..."
         else:
-            print("--- CORTEX OFFLINE: No API Key found in .env ---")
-
-    def capture_and_think(self):
-        """
-        Takes a screenshot and sends it to the Cloud Brain.
-        Runs in a background thread to avoid freezing the game.
-        """
-        if self.is_processing:
-            return
-        
-        self.is_processing = True
-        
-        # 1. Capture the Screen (Agent's POV)
-        # We save the current frame to a file
-        filename = "agent_view.png"
-        application.base.win.saveScreenshot(filename)
-        
-        # Start the heavy lifting in a thread
-        threading.Thread(target=self._send_to_api, args=(filename,), daemon=True).start()
-
-    def _send_to_api(self, filename):
-        try:
-            # Wait a moment for file to be written
-            time.sleep(0.5)
-            
-            if not self.client:
-                # Mock Mode if no API key
-                time.sleep(1)
-                thought = "I see a simulation. I need an API Key to wake up."
+            # Pick best known action
+            values = self.long_term_memory[state]
+            if values[0] > values[1]:
+                action = 0 # Forward
+                thought = "I know this: Move Forward"
+            elif values[1] > values[0]:
+                action = 1 # Turn
+                thought = "I know this: Turn"
             else:
-                # 2. Encode Image
-                with open(filename, "rb") as image_file:
-                    base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+                action = random.choice([0, 1])
+                thought = "Unsure..."
 
-                print("--- UPLOADING TO CLOUD ---")
-                
-                # 3. The API Call
-                response = self.client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are an autonomous AI agent in a 3D simulation. Briefly describe what you see and decide your next action. Format: 'I see [objects]. I will [action]'."
-                        },
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": "What is your next move?"},
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{base64_image}",
-                                        "detail": "low"
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                    max_tokens=100
-                )
-                thought = response.choices[0].message.content
+        self.last_action = action
+        return action, thought
+
+    def learn(self, reward):
+        """
+        The Core Loop: Result -> Update Previous State
+        """
+        if self.last_state:
+            # Q-Learning Update Rule (Simplified)
+            # Old_Value += Learning_Rate * (Reward - Old_Value)
+            current_val = self.long_term_memory[self.last_state][self.last_action]
+            new_val = current_val + 0.5 * (reward - current_val)
+            self.long_term_memory[self.last_state][self.last_action] = new_val
             
-            self.last_thought = thought
-            self.last_seen_time = time.time()
-            print(f"CLOUD BRAIN SAYS: {thought}")
-            
-        except Exception as e:
-            print(f"API ERROR: {e}")
-            self.last_thought = f"Error: {e}"
+            # Auto-Save (The "Continuous Loop")
+            # In production, save less often to save disk IO
+            if random.random() < 0.05: 
+                self.save()
+
+    def save(self):
+        with open(self.memory_file, 'w') as f:
+            json.dump(self.long_term_memory, f)
+        print("--- MEMORY SAVED ---")
+
+# --- THE RETINA (System 1) ---
+class Retina:
+    def __init__(self, camera_entity):
+        self.cam = camera_entity
         
-        finally:
-            self.is_processing = False
+    def process_frame(self):
+        # Raycast Scan (Fast Lidar)
+        red_mass = 0
+        green_mass = 0
+        center_obstacle = 20.0
+        
+        # Wide Scan
+        for i in range(-5, 6):
+            angle = i * 5
+            rad = math.radians(self.cam.world_rotation_y + angle)
+            direction = Vec3(math.sin(rad), 0, math.cos(rad))
+            hit = raycast(self.cam.world_position, direction, distance=20, ignore=(agent,))
+            
+            if hit.hit:
+                if i == 0: center_obstacle = hit.distance
+                if hit.entity.color == color.red: red_mass += 1
+                elif hit.entity.color == color.green: green_mass += 1
+        
+        return {
+            "red_signal": red_mass,
+            "green_signal": green_mass,
+            "center_dist": center_obstacle
+        }
 
-# --- THE 3D WORLD ---
+# --- THE WORLD ---
 app = Ursina()
 
-# 1. The Environment
+# Environment
 ground = Entity(model='plane', scale=(50, 1, 50), color=color.gray.tint(-.2), texture='white_cube', texture_scale=(50,50), collider='box')
 walls = [
     Entity(model='cube', position=(0,2.5,25), scale=(50,5,1), color=color.gray, collider='box'),
@@ -106,61 +123,64 @@ walls = [
     Entity(model='cube', position=(25,2.5,0), scale=(1,5,50), color=color.gray, collider='box'),
     Entity(model='cube', position=(-25,2.5,0), scale=(1,5,50), color=color.gray, collider='box')
 ]
-
-# 2. Objects
 ball = Entity(model='sphere', color=color.red, scale=(2,2,2), position=(5, 1, 10), collider='sphere')
 cube = Entity(model='cube', color=color.green, scale=(2,2,2), position=(-5, 1, 10), collider='box')
 
-# 3. The Agent
 agent = Entity(model='capsule', color=color.white, scale=(1,2,1), position=(0, 1, 0), collider='capsule')
 head = Entity(parent=agent, position=(0, 0.8, 0))
 
-# 4. The Cloud Brain connection
-eye = CloudEye()
+# The Components
+retina = Retina(agent)
+brain = AssociativeBrain()
 
 # GUI
-thought_bubble = Text(text="Booting...", position=(-0.85, 0.45), scale=1.5, color=color.yellow, background=True)
-status_light = Entity(parent=camera.ui, model='quad', scale=(0.05, 0.05), position=(0.85, 0.45), color=color.green)
+thought_bubble = Text(text="Init...", position=(-0.85, 0.45), scale=1.5, background=True)
 
 def update():
-    # --- 1. VISION LOOP ---
-    # Trigger a new thought every 8 seconds (Automatic)
-    if time.time() - eye.last_seen_time > 8.0:
-        eye.capture_and_think()
-
-    # Update GUI
-    thought_bubble.text = eye.last_thought
-    status_light.color = color.red if eye.is_processing else color.green
-
-    # --- 2. MOTOR LOOP (Reaction) ---
-    # Simple semantic parsing of the thought
-    speed = 6 * time.dt
-    rot_speed = 100 * time.dt
+    # 1. SENSE
+    sensation = retina.process_frame()
     
-    thought = eye.last_thought.lower()
+    # 2. THINK
+    action, thought = brain.think(sensation)
+    thought_bubble.text = f"{thought}\nState: {brain.last_state}"
     
-    if "red" in thought or "ball" in thought or "sphere" in thought:
-        agent.look_at_2d(ball.position, 'y')
+    # 3. ACT
+    speed = 10 * time.dt
+    turn_speed = 150 * time.dt
+    
+    if action == 0: # Forward
         agent.position += agent.forward * speed
-    
-    elif "green" in thought or "cube" in thought:
-        agent.look_at_2d(cube.position, 'y')
-        agent.position += agent.forward * speed
+    else: # Turn
+        agent.rotation_y += turn_speed
         
-    elif "wall" in thought or "turn" in thought:
-        agent.rotation_y += rot_speed
-    
-    else:
-        # Wander
-        agent.rotation_y += rot_speed * 0.1
+    # 4. PHYSICS & REWARD (The Teacher)
+    # Wall Punishment
+    if sensation['center_dist'] < 2:
+        brain.learn(-1.0) # Pain
+        agent.position -= agent.forward * speed * 2 # Bounce back
+        agent.rotation_y += 180 # Turn around
+        
+    # Ball Reward
+    if distance(agent, ball) < 2:
+        brain.learn(5.0) # Pleasure
+        print("ATE RED BALL!")
+        ball.x = random.uniform(-20, 20) # Respawn
+        ball.z = random.uniform(-20, 20)
 
-    # Physics
+    # Cube Reward
+    if distance(agent, cube) < 2:
+        brain.learn(5.0)
+        print("ATE GREEN CUBE!")
+        cube.x = random.uniform(-20, 20)
+        cube.z = random.uniform(-20, 20)
+
+    # Bounds
     agent.x = clamp(agent.x, -24, 24)
     agent.z = clamp(agent.z, -24, 24)
 
-# Camera Setup
+# Camera
 EditorCamera()
-camera.position = (0, 10, -20)
+camera.position = (0, 20, -20)
 camera.look_at(agent)
 
 app.run()
