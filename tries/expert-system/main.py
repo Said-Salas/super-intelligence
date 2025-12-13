@@ -1,7 +1,7 @@
 import time
 import os
 import sys
-
+#Not AGI.
 class SuperIntelligence:
     def __init__(self):
         self.is_running = True
