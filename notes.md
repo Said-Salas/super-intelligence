@@ -1,0 +1,1 @@
+- Infants are born with the ability to imitate what other people do. Imitation allows humans to learn new behaviors rapidly. 
