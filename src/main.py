@@ -37,7 +37,13 @@ class SuperIntelligence:
                     with open(filename, 'r') as f: 
                         content = f.read()
 
-                    return {"action": "log_status", "data": f"Read {filename}: {content}"}   
+                    reply = f"I processed your file: {filename}. You said: {content}"
+
+                    return {
+                        "action": "create_file", 
+                        "filename": f"reply_to_{filename}",
+                        "content": reply
+                    }   
 
                 except Exception as e:
                     return {"action": "log_status", "data": f"Failed to read {filename}: {e}"}    
@@ -48,10 +54,13 @@ class SuperIntelligence:
         return {"action": "wait", "reason": "no_change"}
 
     def act(self, plan):
-        if plan["action"] == "wait":
+        if plan["action"] == "create_file":
+            with open(plan["filename"], 'w') as f:
+                f.write(plan["content"])
+            print(f"Cycle {self.cycle_count}: WROTE RESPONSE to {plan['filename']}")
+
+        elif plan["action"] == "wait":
             print(f"Cycle {self.cycle_count}: Waiting...")
-        elif plan["action"] == "log_status":
-            print(f"Cycle {self.cycle_count}: ALERT - {plan['data']}")
 
     def run(self):
         while self.is_running:
