@@ -1,1 +1,2 @@
-- Infants are born with the ability to imitate what other people do. Imitation allows humans to learn new behaviors rapidly. 
+
+hOW TO TRain a neural net that does not need so much data to learn? That it generalized better? Could we draw more idead from neuroscience?
