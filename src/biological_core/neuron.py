@@ -9,6 +9,7 @@ class IzhikevichNeuron:
         # The State
         self.v = -65.0  # Membrane Potential (Voltage)
         self.u = b * self.v  # Recovery Variable (Chemistry)
+        self.last_fired_time = -999.0 # Time of last spike (ms)
 
     def step(self, input_current):
         """
@@ -28,10 +29,10 @@ class IzhikevichNeuron:
         u = u + a * (b * v - u)
 
         # Check for Spike
-        fired = False
+        self.fired = False
         if v >= 30.0:
             # Action Potential Reached!
-            fired = True
+            self.fired = True
             v = c      # Reset voltage
             u = u + d  # Chemical aftershock
 
@@ -39,4 +40,4 @@ class IzhikevichNeuron:
         self.v = v
         self.u = u
         
-        return fired
+        return self.fired

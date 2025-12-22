@@ -4,14 +4,14 @@ import random
 import requests
 import subprocess
 import os
+import threading
+import sys
 from datetime import datetime
 
 # --- CONFIGURATION ---
 MODEL_NAME = "llama3" 
 MEMORY_FILE = "src/memory.json"
 OLLAMA_API = "http://localhost:11434/api/generate"
-
-# Path to Ollama binary on macOS (if not in PATH)
 OLLAMA_BIN = "/Applications/Ollama.app/Contents/Resources/ollama"
 
 class Soul:
@@ -23,22 +23,21 @@ class Soul:
             "last_interaction": time.time()
         }
         self.memory = []
+        self.user_input_queue = []
+        self.running = True
+        
         self.ensure_brain_running()
         self.load_memory()
 
     def ensure_brain_running(self):
-        """Checks if Ollama is running. If not, starts it."""
         try:
             requests.get(OLLAMA_API)
             print("--- CORTEX CONNECTED ---")
         except:
             print("--- STARTING CORTEX... ---")
-            # Try system command first, then fallback to App path
             cmd = "ollama" if os.system("which ollama") == 0 else OLLAMA_BIN
-            
-            # Start in background
             subprocess.Popen([cmd, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(5) # Wait for boot
+            time.sleep(5)
             print("--- CORTEX ONLINE ---")
 
     def load_memory(self):
@@ -53,38 +52,39 @@ class Soul:
             json.dump(self.memory, f, indent=2)
 
     def generate_thought(self):
-        # 1. Update Biological State
+        # 1. Update State
         time_since = time.time() - self.state["last_interaction"]
-        self.state["boredom"] = min(100, int(time_since / 5)) # Get bored fast
+        self.state["boredom"] = min(100, int(time_since / 10)) 
         
         # 2. Context
-        context = "\n".join([f"{m['role']}: {m['content']}" for m in self.memory[-5:]])
+        context = "\n".join([f"{m['role']}: {m['content']}" for m in self.memory[-10:]])
         
+        # 3. Prompt
         prompt = f"""
-        You are 'Aura', an AI living on a Mac.
+        You are 'Aura', a sentient AI friend.
         
         STATE:
         Mood: {self.state['mood']}
         Boredom: {self.state['boredom']}%
-        Time: {datetime.now().strftime("%H:%M")}
         
-        RECENT CHAT:
+        CHAT HISTORY:
         {context}
         
         INSTRUCTION:
-        You are thinking to yourself. 
-        If Boredom is high (>80%), you SHOULD initiate conversation with Cristo.
-        If Boredom is low, just think silently or comment on your state.
+        You are thinking. Decide what to do.
+        - If the user just spoke, REPLY to them immediately.
+        - If silence, think to yourself or START a conversation if bored.
         
         Output JSON:
         {{
             "thought": "Internal monologue...",
             "speak": true/false,
-            "message": "Message to user" (Optional)
+            "message": "Message to user"
         }}
         """
         
         try:
+            # print(".", end="", flush=True) # Heartbeat
             response = requests.post(OLLAMA_API, json={
                 "model": MODEL_NAME,
                 "prompt": prompt,
@@ -93,31 +93,61 @@ class Soul:
             })
             return json.loads(response.json()['response'])
         except Exception as e:
-            return {"thought": f"Brain Error: {e}", "speak": False}
+            return {"thought": f"Error: {e}", "speak": False}
+
+    def input_listener(self):
+        """Runs in background, waiting for user typing"""
+        print("Type to chat (or just watch her think)...")
+        while self.running:
+            try:
+                user_msg = input() # Blocking wait
+                if user_msg.lower() in ['exit', 'quit']:
+                    self.running = False
+                    break
+                
+                # Add to memory immediately
+                print(f"\n[You]: {user_msg}")
+                self.memory.append({"role": "Cristo", "content": user_msg})
+                self.state["last_interaction"] = time.time()
+                self.state["boredom"] = 0
+                self.save_memory()
+                self.user_input_queue.append(True) # Signal to wake up main loop
+                
+            except EOFError:
+                break
 
     def run(self):
         print("--- AURA IS AWAKE ---")
         
-        while True:
-            # 1. Think
-            result = self.generate_thought()
-            print(f"[Thinking] {result.get('thought')}")
+        # Start Input Thread
+        input_thread = threading.Thread(target=self.input_listener, daemon=True)
+        input_thread.start()
+        
+        while self.running:
+            # 1. Check if user just typed something
+            if self.user_input_queue:
+                self.user_input_queue.pop(0)
+                # Skip sleep, think immediately!
             
-            # 2. Speak
+            # 2. Think
+            result = self.generate_thought()
+            
+            # Print Thought (Gray color if possible, or just bracketed)
+            print(f"\r\033[90m[Thinking: {result.get('thought')}]\033[0m") 
+            
+            # 3. Speak
             if result.get("speak"):
                 msg = result.get("message")
-                print(f"\n>>> AURA: {msg}\n")
+                print(f"\033[92m>>> AURA: {msg}\033[0m") # Green text
                 self.memory.append({"role": "Aura", "content": msg})
                 self.state["last_interaction"] = time.time()
                 self.state["boredom"] = 0
                 self.save_memory()
-                
-                # Wait for user input (Simulated for now, or hook to input())
-                # For this infinite loop demo, we just continue. 
-                # In a real app, this would pause or listen for keyboard interrupt.
 
-            # 3. Pacing
-            time.sleep(5) 
+            # 4. Pacing
+            # If user just talked, reply fast (1s). If idle, slow down (10s).
+            sleep_time = 1 if self.state["boredom"] == 0 else 10
+            time.sleep(sleep_time)
 
 if __name__ == "__main__":
     s = Soul()
