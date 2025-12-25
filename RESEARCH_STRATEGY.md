@@ -37,3 +37,4 @@ You cannot "patch" safety into a superintelligence later. It must be fundamental
 *   **Shared Substrate:** If the AI functions like a biological entity (homeostasis, pain/pleasure), it can understand human suffering.
 *   **Dependence:** Build it such that its "thriving" is coupled with ours.
 *   **Gradual Agency:** Start with a worm, then a mouse, then a dog. Don't jump to a god. Verify safety at every level of complexity.
+
