@@ -16,12 +16,15 @@ class Perceptron:
         prediction = self.predict(inputs)
         error = target - prediction
         self.weights[0] += error * self.lr
-        self.weights[1:] += error * inputs * self.lr #does perceptron have synapses?
+        self.weights[1:] += error * inputs * self.lr
 
         return error 
 
-#what can we teach to a perceptron?
-    
+if __name__ == "__main__":
+    training_data = [
+        (np.array([0, 0]), 0),
+        
+    ]
     
 
     
