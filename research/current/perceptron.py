@@ -23,8 +23,26 @@ class Perceptron:
 if __name__ == "__main__":
     training_data = [
         (np.array([0, 0]), 0),
-        
+        (np.array([0, 1]), 0),
+        (np.array([1, 0]), 0),
+        (np.array([1, 1]), 1)
     ]
+    
+    neuron = Perceptron(input_size=2)
+    for epoch in range(10):
+        total_error = 0
+        for inputs, label in training_data:
+            error = neuron.train(inputs, label)
+            total_error += abs(error)
+
+        if total_error == 0:
+            print("Learning achieved.")
+            break
+    
+    print("Test")
+    for inputs, label in training_data:
+        output = neuron.predict(inputs)
+        print(f"Input: {inputs} -> Output: {output} (Expected: {label})")
     
 
     
