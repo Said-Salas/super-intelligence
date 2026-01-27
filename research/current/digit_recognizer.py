@@ -1,6 +1,9 @@
 import torch
 import torchvision
 import torchvision.transforms as transforms
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -23,3 +26,17 @@ test_set = torchvision.datasets.MNIST(
 )
 
 train_loader = torch.utils.data.DataLoader(train_set, batch_size=64, shuffle=True)
+test_loader = torch.utils.data.DataLoader(test_set, batch_size=64, shuffle=False)
+
+print(f"Script Running! Training images: {len(train_set)}, Test images: {len(test_set)}")
+
+# data_iter = iter(train_loader)
+# images, labels = next(data_iter)
+# print(f"Image shape: {images[0].shape}")
+
+class Net(nn.Module): 
+    def __init__(self):
+        super(Net, self).__init__()
+        self.fc1 = nn.Linear(28 * 28, 128) #Extracts raw features(lines/edges)
+        self.fc2 = nn.Linear(128, 64) #Combines features into concepts (loops, crossings)
+        self.fc3 = nn.Linear(64, 10) #Takes the concepts and makes the final vote (0-9)
