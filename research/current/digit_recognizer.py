@@ -1,3 +1,6 @@
+from typing import Any
+
+
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -53,3 +56,18 @@ print(net)
 
 criterion = nn.CrossEntropyLoss()
 optimizer =  optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
+
+print("\nStarting training")
+
+epochs = 5
+for epoch in range(epochs):
+    running_loss = 0.0
+
+    for i, data in enumerate[Any](train_loader, 0):
+        inputs, labels = data
+        optimizer.zero_grad()
+        outputs = net(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        running_loss += loss.item()
