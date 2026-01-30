@@ -71,3 +71,10 @@ for epoch in range(epochs):
         loss.backward()
         optimizer.step()
         running_loss += loss.item()
+
+        if i % 500 == 499:
+            print(f'[Epoch {epoch + 1}, Batch {i + 1}] loss: {running_loss / 500:.3f}')
+
+print('Finished training')
+torch.save(net.state_dict(), './mnist_net.pth')
+print('Model saved to mnist_net.pth')
