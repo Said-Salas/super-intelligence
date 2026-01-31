@@ -59,7 +59,7 @@ optimizer =  optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
 
 print("\nStarting training")
 
-epochs = 5
+epochs = 10
 for epoch in range(epochs):
     running_loss = 0.0
 
