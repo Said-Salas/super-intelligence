@@ -44,12 +44,12 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(128, 64) #Combines features into concepts (loops, crossings)
         self.fc3 = nn.Linear(64, 10) #Takes the concepts and makes the final vote (0-9)
 
-        def forward(self, x):
-            x = x.view(-1, 28 * 28)
-            x = F.relu(self.fc1(x))
-            x = F.relu(self.fc2(x))
-            x = self.fc3(x)
-            return x
+    def forward(self, x):
+        x = x.view(-1, 28 * 28)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
 net = Net()
 print(net)
@@ -63,7 +63,7 @@ epochs = 5
 for epoch in range(epochs):
     running_loss = 0.0
 
-    for i, data in enumerate[Any](train_loader, 0):
+    for i, data in enumerate(train_loader, 0):
         inputs, labels = data
         optimizer.zero_grad()
         outputs = net(inputs)
@@ -72,7 +72,7 @@ for epoch in range(epochs):
         optimizer.step()
         running_loss += loss.item()
 
-        if i % 500 == 499:
+        if (i + 1) % 500 == 0:
             print(f'[Epoch {epoch + 1}, Batch {i + 1}] loss: {running_loss / 500:.3f}')
 
 print('Finished training')
