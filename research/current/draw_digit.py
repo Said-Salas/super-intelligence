@@ -25,3 +25,28 @@ net = Net()
 net.load_state_dict(torch.load('./mnist_net.pth', map_location=torch.device('cpu')))
 net.eval()
 
+class DigitPainter:
+    def __init__(self):
+        self.window =tk.Tk()
+        self.window.title('Draw a Digit (0-9)')
+
+        self.canvas = tk.Canvas(self.window, width=280, height=280, bg='black')
+        self.canvas.pack()
+
+        self.image = Image.new('L', (280, 280), 0)
+        self.draw = ImageDraw.Draw(self.image)
+
+        self.canvas.bind('<B1-Motion>', self.paint)
+
+        btn_frame = tk.Frame(self.window)
+        btn_frame.pack()
+
+        tk.Button(btn_frame, text='PREDICT', command=self.predict, bg='green').pack(side=tk.LEFT)
+        tk.Button(btn_frame, text='CLEAR', command=self.clear).pack(side=tk.LEFT)
+
+        self.label = tk.Label(self.window, text='Draw a number...', font=('Helvetica', 24))
+        self.label.pack()
+
+        self.window.mainloop()
+
+        
