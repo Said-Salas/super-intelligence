@@ -49,4 +49,14 @@ class DigitPainter:
 
         self.window.mainloop()
 
+    def paint(self, event):
+        x1, y1 = (event.x - 10), (event.y - 10)
+        x2, y2 = (event.x + 10), (event.y + 10)
+        self.canvas.create_oval(x1, y1, x2, y2, fill='white', outline='white')
+
+        self.draw.ellipse([x1, y1, x2, y2], fill=255)
+
+    def clear(self):
+        self.canvas.delete('all')
+
         
