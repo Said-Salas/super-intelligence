@@ -58,5 +58,17 @@ class DigitPainter:
 
     def clear(self):
         self.canvas.delete('all')
+        self.image = Image.new('L', (280, 280), 0)
+        self.draw = ImageDraw.Draw(self.image)
+        self.label.config(text='Draw a number...')
+
+    def predict(self):
+        img_resized = self.image.resize((28, 28))
+        img_array = np.array(img_resized) / 255.0
+        img_tensor = torch.FloatTensor(img_array)
+        img_tensor = (img_tensor - 0.5) / 0.5
+         
+
+
 
         
