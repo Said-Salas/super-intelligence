@@ -67,7 +67,22 @@ class DigitPainter:
         img_array = np.array(img_resized) / 255.0
         img_tensor = torch.FloatTensor(img_array)
         img_tensor = (img_tensor - 0.5) / 0.5
-         
+        img_tensor = img_tensor.unsqueeze(0)
+
+        with torch.no_grad():
+            output = net(img_tensor)
+            probs = F.softmax(output, dim=1)
+            confidence, predicted = torch.max(probs, 1)
+
+        result = predicted.item()
+        conf = confidence.item() * 100
+
+        self.label.config(text=f"I see a {result} ({conf:.1f})%")
+        print(f"Prediction: {result}, Confidence: {conf:2f}%")
+
+if __name__ == "__main__":
+    DigitPainter()
+
 
 
 
