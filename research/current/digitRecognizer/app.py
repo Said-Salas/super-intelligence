@@ -12,4 +12,5 @@ app = Flask(__name__)
 CORS(app)
 
 class Net(nn.Module):
-    
+    def __init__(self):
+        
