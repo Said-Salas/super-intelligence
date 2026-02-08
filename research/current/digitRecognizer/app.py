@@ -25,4 +25,13 @@ class Net(nn.Module):
         x = self.fc3(x)
         return x
 
+print('Loading model...')
+device = torch.device('cpu')
+net = Net()
+model_path = os.path.join(os.path.dirname(__file__), 'mnist_net.pth')
+net.load_state_dict(torch.load(model_path, map_location=device))
+net.eval()
+
+
+
         
