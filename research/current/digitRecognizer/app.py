@@ -32,6 +32,26 @@ model_path = os.path.join(os.path.dirname(__file__), 'mnist_net.pth')
 net.load_state_dict(torch.load(model_path, map_location=device))
 net.eval()
 
+@app.route('/predict', methods=['POST'])
+def predict():
+    file = request.files['image']
+    img = Image.open(io.BytesIO(file.read())).convert('L')
+    img = img.resize((28, 28))
+    img_array = np.array(img) / 255.0
+    img_tensor = torch.FloatTensor(img_array)
+    img_tensor = (img_tensor - 0.5) / 0.5
+    img_tensor = img_tensor.unsqueeze(0)
 
+    with torch.no_grad():
+        output = net(img_tensor)
+        probs = F.softmax(output, dim=1)
+        confidence, predicted = torch.max(probs, 1)
 
+        return jsonify({
+            'prediction': predicted.item(),
+            'confidence': confidence.item() * 100
+        })
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
         
