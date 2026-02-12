@@ -9,7 +9,7 @@ export default function Home() {
   
   const handlePredict = async () => {
     if (!canvasRef.current) return
-
+    const base64Image = await canvasRef.current.exportImage('png')
     
   }
 
