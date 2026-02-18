@@ -6,17 +6,8 @@ import torch.nn.functional as F
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
-        # 1. Convolutional Layer 1
-        # Input: 1 channel (grayscale), Output: 32 channels (32 different filters)
-        # Kernel: 3x3 (The size of the sliding window)
         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
-        
-        # 2. Convolutional Layer 2
-        # Input: 32 channels, Output: 64 channels
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        
-        # 3. Max Pooling (The "Shrinker")
-        # Reduces size by half (2x2 window)
         self.pool = nn.MaxPool2d(2, 2)
         
         # 4. Fully Connected Layers (The Classifier)
